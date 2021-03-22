@@ -613,6 +613,113 @@ func NewCpl(cplID DeviceID, bc int, status CompletionStatus, reqID DeviceID, tag
 	return tlp, nil
 }
 
+// See Table 2-37: Calculating Byte Count from Length and Byte Enables.
+func CplCalcByteCount(firstBE, lastBE, length int) int {
+	if firstBE&0b1001 == 0b1001 && lastBE == 0b0000 {
+		return 4
+	}
+	if firstBE&0b1101 == 0b0101 && lastBE == 0b0000 {
+		return 3
+	}
+	if firstBE&0b1011 == 0b1010 && lastBE == 0b0000 {
+		return 3
+	}
+	if firstBE == 0b0011 && lastBE == 0b0000 {
+		return 2
+	}
+	if firstBE == 0b0110 && lastBE == 0b0000 {
+		return 2
+	}
+	if firstBE == 0b1100 && lastBE == 0b0000 {
+		return 2
+	}
+	if firstBE == 0b0001 && lastBE == 0b0000 {
+		return 1
+	}
+	if firstBE == 0b0010 && lastBE == 0b0000 {
+		return 1
+	}
+	if firstBE == 0b0100 && lastBE == 0b0000 {
+		return 1
+	}
+	if firstBE == 0b1000 && lastBE == 0b0000 {
+		return 1
+	}
+	if firstBE == 0b0000 && lastBE == 0b0000 {
+		return 1
+	}
+	if firstBE&0b0001 == 0b0001 && lastBE&0b1000 == 0b1000 {
+		return length * 4
+	}
+	if firstBE&0b0001 == 0b0001 && lastBE&0b1100 == 0b0100 {
+		return length*4 - 1
+	}
+	if firstBE&0b0001 == 0b0001 && lastBE&0b1110 == 0b0010 {
+		return length*4 - 2
+	}
+	if firstBE&0b0001 == 0b0001 && lastBE == 0b0001 {
+		return length*4 - 3
+	}
+	if firstBE&0b0011 == 0b0010 && lastBE&0b1000 == 0b1000 {
+		return length*4 - 1
+	}
+	if firstBE&0b0011 == 0b0010 && lastBE&0b1100 == 0b0100 {
+		return length*4 - 2
+	}
+	if firstBE&0b0011 == 0b0010 && lastBE&0b1110 == 0b0010 {
+		return length*4 - 3
+	}
+	if firstBE&0b0011 == 0b0010 && lastBE == 0b0001 {
+		return length*4 - 4
+	}
+	if firstBE&0b0111 == 0b0100 && lastBE&0b1000 == 0b1000 {
+		return length*4 - 2
+	}
+	if firstBE&0b0111 == 0b0100 && lastBE&0b1100 == 0b0100 {
+		return length*4 - 3
+	}
+	if firstBE&0b0111 == 0b0100 && lastBE&0b1110 == 0b0010 {
+		return length*4 - 4
+	}
+	if firstBE&0b0111 == 0b0100 && lastBE == 0b0001 {
+		return length*4 - 5
+	}
+	if firstBE == 0b1000 && lastBE&0b1000 == 0b1000 {
+		return length*4 - 3
+	}
+	if firstBE == 0b1000 && lastBE&0b1100 == 0b0100 {
+		return length*4 - 4
+	}
+	if firstBE == 0b1000 && lastBE&0b1110 == 0b0010 {
+		return length*4 - 5
+	}
+	if firstBE == 0b1000 && lastBE == 0b0001 {
+		return length*4 - 6
+	}
+	return 0
+}
+
+// Table 2-38: Calculating Lower Address from 1st DW BE.
+func CplCalcLowerAddress(firstBE int, readAddress Address) byte {
+	addr := byte(readAddress & 0x7c)
+	if firstBE == 0b0000 {
+		return addr + 0b00
+	}
+	if firstBE&0b0001 == 0b0001 {
+		return addr + 0b00
+	}
+	if firstBE&0b0011 == 0b0010 {
+		return addr + 0b01
+	}
+	if firstBE&0b0111 == 0b0100 {
+		return addr + 0b10
+	}
+	if firstBE == 0b1000 {
+		return addr + 0b11
+	}
+	return 0
+}
+
 // CfgHeader extends RequestHeader and includes the third header dword
 // for configuration read TLPs.
 type CfgHeader struct {

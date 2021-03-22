@@ -276,15 +276,14 @@ func TestMWrEncoding(t *testing.T) {
 
 // Round-trip Cpl encoding/decoding.
 func TestCplEncoding(t *testing.T) {
-	f := func(cplID DeviceID, bc int, status CompletionStatus, reqID DeviceID, tag uint8, address Address, data []byte) bool {
+	f := func(cplID DeviceID, bc int, status CompletionStatus, reqID DeviceID, tag uint8, data []byte) bool {
 		cplID.Device &= 0x1f
 		cplID.Function &= 0x7
 		bc &= 0xfff
 		status &= 0x7
 		reqID.Device &= 0x1f
 		reqID.Function &= 0x7
-		address &= 0x7f
-		src, err := NewCpl(cplID, bc, status, reqID, tag, address, data[:len(data)&0x3fc])
+		src, err := NewCpl(cplID, bc, status, reqID, tag, data[:len(data)&0x3fc])
 		if err != nil {
 			return false
 		}

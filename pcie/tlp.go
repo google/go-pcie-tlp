@@ -592,13 +592,14 @@ func NewCplFromBytes(b []byte) (*Cpl, error) {
 }
 
 // NewCpl builds completion response.
-func NewCpl(cplID DeviceID, bc int, status CompletionStatus, reqID DeviceID, tag uint8, data []byte) (*Cpl, error) {
+func NewCpl(cplID DeviceID, bc int, status CompletionStatus, reqID DeviceID, tag, addressLow uint8, data []byte) (*Cpl, error) {
 	tlp := &Cpl{}
 	tlp.CplID = cplID
 	tlp.BC = bc
 	tlp.Status = status
 	tlp.ReqID = reqID
 	tlp.Tag = tag
+	tlp.AddressLow = addressLow
 
 	if len(data) > 0 {
 		tlp.Type = CplD
@@ -718,6 +719,16 @@ func CplCalcLowerAddress(firstBE int, readAddress Address) byte {
 		return addr + 0b11
 	}
 	return 0
+}
+
+// NewCplForMrd builds a completion response that matches the given memory read request.
+func NewCplForMrd(cplID DeviceID, status CompletionStatus, mrd *MRd, data []byte) (*Cpl, error) {
+	if len(data) != mrd.DataLength() {
+		return nil, fmt.Errorf("%w: buffer size (%d) does not match expected DataLength (%d)", ErrBadLength, len(data), mrd.DataLength())
+	}
+	bc := CplCalcByteCount(int(mrd.FirstBE), int(mrd.LastBE), mrd.Length)
+	addressLow := CplCalcLowerAddress(int(mrd.FirstBE), mrd.Address)
+	return NewCpl(cplID, bc, status, mrd.ReqID, mrd.Tag, addressLow, data)
 }
 
 // CfgHeader extends RequestHeader and includes the third header dword

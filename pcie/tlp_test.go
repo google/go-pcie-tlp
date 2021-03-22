@@ -276,14 +276,15 @@ func TestMWrEncoding(t *testing.T) {
 
 // Round-trip Cpl encoding/decoding.
 func TestCplEncoding(t *testing.T) {
-	f := func(cplID DeviceID, bc int, status CompletionStatus, reqID DeviceID, tag uint8, data []byte) bool {
+	f := func(cplID DeviceID, bc int, status CompletionStatus, reqID DeviceID, tag, addressLow uint8, data []byte) bool {
 		cplID.Device &= 0x1f
 		cplID.Function &= 0x7
 		bc &= 0xfff
 		status &= 0x7
 		reqID.Device &= 0x1f
 		reqID.Function &= 0x7
-		src, err := NewCpl(cplID, bc, status, reqID, tag, data[:len(data)&0x3fc])
+		addressLow &= 0x7f
+		src, err := NewCpl(cplID, bc, status, reqID, tag, addressLow, data[:len(data)&0x3fc])
 		if err != nil {
 			return false
 		}
@@ -321,6 +322,32 @@ func TestCplDecodingMatchesPciLeech(t *testing.T) {
 	want := []byte{0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
 		0x41, 0x41, 0x41, 0x41, 0x41, 0x41}
 	if diff := cmp.Diff(want, tlp.Data); diff != "" {
+		t.Errorf("Unexpected Data:\n%s", diff)
+	}
+}
+
+func TestCplForMrd(t *testing.T) {
+	tag := uint8(0x80)
+	addr32 := uint64(0x12340)
+	data := []byte{1, 2, 3, 4}
+	mrd, err := NewMRd(reqID, tag, addr32, uint32(len(data)))
+	if err != nil {
+		t.Fatalf("NewMRd(%d, %d, %d, %d) = _, %v, want nil err", reqID, tag, addr32, len(data), err)
+	}
+	cpl, err := NewCplForMrd(rootID, SuccessfulCompletion, mrd, data)
+	if err != nil {
+		t.Fatalf("NewCplForMrd(%v, %d, %v, % X) = _, %v, want nil err", rootID, SuccessfulCompletion, mrd, data, err)
+	}
+	if cpl.AddressLow != byte(addr32&0x7f) {
+		t.Errorf("Unexpected AddressLow (%d)", cpl.AddressLow)
+	}
+	if cpl.Tag != tag {
+		t.Errorf("Unexpected tag (%d)", cpl.Tag)
+	}
+	if cpl.BC != len(data) {
+		t.Errorf("Unexpected BC (%d)", cpl.BC)
+	}
+	if diff := cmp.Diff(data, cpl.Data); diff != "" {
 		t.Errorf("Unexpected Data:\n%s", diff)
 	}
 }

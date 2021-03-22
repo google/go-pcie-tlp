@@ -592,13 +592,14 @@ func NewCplFromBytes(b []byte) (*Cpl, error) {
 }
 
 // NewCpl builds completion response.
-func NewCpl(cplID DeviceID, bc int, status CompletionStatus, reqID DeviceID, tag uint8, data []byte) (*Cpl, error) {
+func NewCpl(cplID DeviceID, bc int, status CompletionStatus, reqID DeviceID, tag uint8, address Address, data []byte) (*Cpl, error) {
 	tlp := &Cpl{}
 	tlp.CplID = cplID
 	tlp.BC = bc
 	tlp.Status = status
 	tlp.ReqID = reqID
 	tlp.Tag = tag
+	tlp.AddressLow = byte(address & 0x7f)
 
 	if len(data) > 0 {
 		tlp.Type = CplD

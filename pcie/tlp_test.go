@@ -381,6 +381,26 @@ func TestCplDecodingFailsOnTruncatedPayload(t *testing.T) {
 	}
 }
 
+// Round-trip CfgWr encoding/decoding.
+func TestCfgWrEncoding(t *testing.T) {
+	f := func(reqID DeviceID, tag uint8, target DeviceID, register int, data [4]byte) bool {
+		reqID.Device &= 0x1f
+		reqID.Function &= 0x7
+		target.Device &= 0x1f
+		target.Function &= 0x7
+		register &= 0x3ff
+		src := NewCfgWr(reqID, tag, target, register, data)
+		dst, err := NewCfgWrFromBytes(src.ToBytes())
+		if err != nil {
+			return false
+		}
+		return cmp.Equal(src, dst)
+	}
+	if err := quick.Check(f, nil); err != nil {
+		t.Error(err)
+	}
+}
+
 func TestIOTlpDoNotSupport64bitAddresses(t *testing.T) {
 	addr64 := uint64(0xffffffff00012000)
 	_, err := NewIORd(reqID, 0x80, addr64, 4)

@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"math/bits"
 )
 
 // abbreviations
@@ -751,6 +752,13 @@ func (h *CfgHeader) toBuffer(buf *bytes.Buffer) {
 	dw[3] = byte(h.RegisterNumber << 2)
 	buf.Write(dw)
 }
+func (h *CfgHeader) fromBuffer(buf *bytes.Buffer) {
+	h.RequestHeader.fromBuffer(buf)
+	dw := buf.Next(dwordLen)
+	h.Target.fromBytes(dw[0:2])
+	h.ExtRegisterNumber = int(dw[2] & 0xf)
+	h.RegisterNumber = int(dw[3]>>2) & 0x3f
+}
 
 // CfgRd TLP: Configuration read request.
 type CfgRd struct {
@@ -775,7 +783,8 @@ func NewCfgRd(reqID DeviceID, tag uint8, target DeviceID, register int) *CfgRd {
 	tlp.FirstBE = 0xf
 	tlp.LastBE = 0
 	tlp.Target = target
-	tlp.RegisterNumber = register
+	tlp.RegisterNumber = (register << 2) & 0x3f
+	tlp.ExtRegisterNumber = register & 0xf
 	return tlp
 }
 
@@ -804,10 +813,53 @@ func NewCfgWr(reqID DeviceID, tag uint8, target DeviceID, register int, data [4]
 	tlp.FirstBE = 0xf
 	tlp.LastBE = 0
 	tlp.Target = target
-	tlp.RegisterNumber = register
+	tlp.RegisterNumber = (register << 2) & 0x3f
+	tlp.ExtRegisterNumber = register & 0xf
 	tlp.Data = make([]byte, len(data))
 	copy(tlp.Data, data[:])
 	return tlp
+}
+
+// NewCfgWrFromBytes builds a memory read request from a TLP buffer.
+func NewCfgWrFromBytes(b []byte) (*CfgWr, error) {
+	if len(b) < 3*dwordLen {
+		return nil, fmt.Errorf("%w: TLP buffer too short (%d), expected at least 12 bytes", ErrTooShort, len(b))
+	}
+	// Verify type.
+	var hdr TlpHeader
+	hdr.fromBuffer(bytes.NewBuffer(b))
+	if hdr.Type != CfgWr0 && hdr.Type != CfgWr1 {
+		return nil, fmt.Errorf("%w: type %x is not supported. supported types: CfgWr0, CfgWr1", ErrBadType, hdr.Type)
+	}
+	// Decode CfgWr.
+	tlp := &CfgWr{}
+	buf := bytes.NewBuffer(b)
+	tlp.CfgHeader.fromBuffer(buf)
+	tlp.Data = make([]byte, tlp.DataLength())
+	if buf.Len() < len(tlp.Data) {
+		return nil, fmt.Errorf("%w: TLP data too short (%d), expected %d bytes", ErrTooShort, buf.Len(), len(tlp.Data))
+	}
+	copy(tlp.Data, buf.Next(len(tlp.Data)))
+	if tlp.Length != 1 {
+		return nil, fmt.Errorf("%w: TLP bad length in request (%d), expected 1", ErrBadLength, tlp.Length)
+	}
+	if tlp.LastBE != 0 {
+		return nil, fmt.Errorf("%w: TLP bad LastBE in request (%d), expected 0", ErrBadLength, tlp.LastBE)
+	}
+	return tlp, nil
+}
+
+// Returns the config space memory address.
+// Table 7-1: Enhanced Configuration Address Mapping.
+func (tlp *CfgWr) MemoryAddress() int {
+	offset := bits.TrailingZeros8(tlp.FirstBE)
+	return tlp.ExtRegisterNumber<<8 + tlp.RegisterNumber<<2 + offset
+}
+
+// Returns the first enabled data.
+func (tlp *CfgWr) FirstDataByte() byte {
+	offset := bits.TrailingZeros8(tlp.FirstBE)
+	return tlp.Data[offset]
 }
 
 // IORd TLP: I/O read request.

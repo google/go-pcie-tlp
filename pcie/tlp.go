@@ -497,7 +497,7 @@ func (tlp *MWr) ToBytes() []byte {
 
 // NewMWr builds memory write request.
 // len(data) must be DWORD aligned.
-func NewMWr(reqID DeviceID, addr uint64, data []byte) (*MWr, error) {
+func NewMWr(reqID DeviceID, tag uint8, addr uint64, data []byte) (*MWr, error) {
 	tlp := &MWr{}
 	tlp.Address = Address(addr)
 	if tlp.Address.is64() {
@@ -511,7 +511,7 @@ func NewMWr(reqID DeviceID, addr uint64, data []byte) (*MWr, error) {
 	}
 
 	tlp.ReqID = reqID
-	tlp.Tag = 0
+	tlp.Tag = tag
 	tlp.setByteEnables()
 
 	tlp.Data = make([]byte, len(data))
@@ -593,7 +593,7 @@ func NewCplFromBytes(b []byte) (*Cpl, error) {
 }
 
 // NewCpl builds completion response.
-func NewCpl(cplID DeviceID, bc int, status CompletionStatus, reqID DeviceID, tag, addressLow uint8, data []byte) (*Cpl, error) {
+func NewCpl(cplID DeviceID, bc int, status CompletionStatus, reqID DeviceID, tag uint8, addressLow uint8, data []byte) (*Cpl, error) {
 	tlp := &Cpl{}
 	tlp.CplID = cplID
 	tlp.BC = bc

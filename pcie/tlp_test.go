@@ -216,6 +216,7 @@ func TestMWrEncodingMatchesPciLeech(t *testing.T) {
 	// 0070    41 41 41 41 41 41 41 41  41 41 41 41 41 41 41 41   AAAAAAAAAAAAAAAA
 	// 0080    41 41 41 41 41 41 41 41  41 41 41 41               AAAAAAAAAAAA
 	addr32 := uint64(0x12cf80)
+	tag := 0
 	data := []byte{
 		0x41, 0x41, 0x41, 0x41,
 		0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
@@ -227,9 +228,9 @@ func TestMWrEncodingMatchesPciLeech(t *testing.T) {
 		0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
 		0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
 	}
-	tlp, err := NewMWr(reqID, addr32, data)
+	tlp, err := NewMWr(reqID, tag, addr32, data)
 	if err != nil {
-		t.Fatalf("NewMWr(%d, %d, %X) = _, %v, want nil err", reqID, addr32, data, err)
+		t.Fatalf("NewMWr(%d, %d, %d, %X) = _, %v, want nil err", reqID, tag, addr32, data, err)
 	}
 
 	want := []byte{
@@ -251,7 +252,7 @@ func TestMWrEncodingMatchesPciLeech(t *testing.T) {
 
 // Round-trip MWr encoding/decoding.
 func TestMWrEncoding(t *testing.T) {
-	f := func(reqID DeviceID, addr uint64, data []byte) bool {
+	f := func(reqID DeviceID, tag uint8, addr uint64, data []byte) bool {
 		reqID.Device &= 0x1f
 		reqID.Function &= 0x7
 		addr &= ^uint64(3)
@@ -259,7 +260,7 @@ func TestMWrEncoding(t *testing.T) {
 			// Empty / short data buffer not supported.
 			return true
 		}
-		src, err := NewMWr(reqID, addr, data[:len(data)&0x3fc])
+		src, err := NewMWr(reqID, tag, addr, data[:len(data)&0x3fc])
 		if err != nil {
 			return false
 		}

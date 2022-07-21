@@ -26,7 +26,7 @@ tlp, err := pcie.NewMRd(reqID, tag, addr, maxLen)
 
 // Build memory write TLP.
 data := []byte{0x41, 0x41, 0x41, 0x41}
-tlp, err := pcie.NewMWr(reqID, addr, data)
+tlp, err := pcie.NewMWr(reqID, tag, addr, data)
 
 // Parse completion TLP.
 buf := []byte{
